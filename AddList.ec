@@ -52,7 +52,15 @@ qed.
         move => h'. simplify. split. apply (h' 0). smt(@List). apply h. move => i h''.
         have : p (nth x0 (x :: l) (i+1)). apply h'. smt(). smt().
     qed.
-    
+
+  lemma foldr_rcons zero (add : 't -> 't -> 't) l a :
+     (forall a b c, add (add a b) c = add a (add b c)) =>
+     (forall a b, add a b = add b a) =>
+      foldr add zero (rcons l a) = add a (foldr add zero l).
+  proof.
+    move => ass com. elim l. simplify. trivial. move => x l ind. simplify. smt().
+  qed.
+
   lemma foldr_cat (mul : 't -> 't-> 't) e a b :
     (forall b, mul e b = b) =>
     (forall a b c, mul (mul a b) c = mul a (mul b c)) =>  
@@ -231,3 +239,112 @@ lemma rem_nth ['a] (a:'a) (i : 'a) l :
   lemma countC p (s : 'a list):
     count (predC p) s = size s -  count p s.
   proof. elim: s; smt(). qed.
+
+lemma insert_map (f : 'a -> 'b) (j : 'a) js i :
+    insert (f j) (map f js) i = map f (insert j js i).
+proof.
+  smt(@List).
+qed.
+
+(*
+lemma insert_rem_sub : forall (s : int), 0 <= s => forall (js : 'a list) j, size js = s =>
+    uniq js => j \in js => js = insert j (rem j js) (index j js).
+proof.
+  apply intind. simplify. smt(@List).  move => i hi ind_hyp. simplify.
+  move => js j size_js uniq_js j_in_js.  
+qed. *)
+    
+
+lemma nth_insert_gen ['a] (a:'a) (i : 'a) l w j : 0 <= w => w <= size l => w <> j =>
+    nth a (insert i l w) j = nth a l (if j < w then j else j -1).
+  proof.
+    move => h0 h1 h2. rewrite nth_cat. rewrite size_take; trivial. case ( w < size l) => h'.
+    (* case 1 *) case (j < w) => h''. rewrite nth_take; trivial. have : (j - w <> 0).
+    smt(). move => h. rewrite h. simplify. rewrite nth_drop; trivial. smt(). congr.
+    smt(). 
+    (* case 2 *)
+    case (j < size l) => h''. case ( j < w) => h'''. rewrite nth_take; trivial.
+    smt(). have : j - size l <> 0. smt(@List). move => g'. rewrite g'. 
+    simplify. rewrite nth_drop; trivial. smt(). congr. smt(). 
+  qed.
+
+lemma insert_rem (js : 'a list) j : uniq js => j \in js =>
+    js = insert j (rem j js) (index j js).
+proof.
+  move => h h0. apply (eq_from_nth witness). smt(@List).
+  move => i hi. case (i = (index j js)) => g. subst. rewrite nth_insert. smt(@List). smt(@List).
+  rewrite nth_insert_gen. smt(@List). smt(@List). smt(@List). rewrite rem_nth. smt(@List).
+  case (i < index j js) => h'. smt(). smt().
+qed.
+    
+lemma foldr_add_distr_f (f f'  : int -> 'a)(add : 'a-> 'a -> 'a)(zero : 'a) :
+    (forall (a b c : 'a), add (add a b) c = add a (add b c)) =>
+    (forall (a b : 'a), add a b = add b a) =>
+    (forall (a : 'a), a = add a zero) =>
+    forall i, 0 <= i =>
+    foldr add zero (mkseq (fun (i0 : int) => add (f i0) (f' i0)) i)
+    = add (foldr add zero (mkseq f i)) (foldr add zero (mkseq f' i)).
+proof.
+  move => assoc comm add0. apply intind. simplify. rewrite !mkseq0. simplify. apply add0.
+  simplify. move => i hi ind_hyp. rewrite mkseqS. smt(). rewrite foldr_rcons; trivial.
+  rewrite ind_hyp. rewrite mkseqS. smt(). rewrite mkseqS. smt(). rewrite !foldr_rcons; trivial. simplify.
+  smt(). 
+qed.
+
+(* Rearrange a double loop *)
+lemma double_loop_rearr (f : int -> 'a)(add : 'a-> 'a -> 'a)(zero : 'a)(exp : 'a -> int -> 'a) :
+    (forall (a : 'a) i, 0 <= i => exp a (i+1) = add a (exp a i)) =>
+    (forall (a : 'a) i, i =1 => exp a i = a) =>
+    (forall (a : 'a), exp a 0 = zero) =>
+   (forall (a b c : 'a), add (add a b) c = add a (add b c)) =>
+   (forall (a b : 'a), add a b = add b a) =>
+   (forall (a : 'a), a = add a zero) =>
+    forall n, 0 <= n =>
+  foldr add zero (mkseq (fun (i : int) =>
+    foldr add zero (mkseq (fun (j : int) => f (i + j)) (n- i))) n) =
+    foldr add zero (mkseq (fun (i : int) => exp (f i) (i + 1)) n).
+proof.
+  move => expS exp1 exp0 trans comm addr. apply intind. simplify. rewrite !mkseq0. trivial.
+  simplify. move => i hi ind_hyp. rewrite eq_sym. rewrite mkseqS. smt(). rewrite foldr_rcons; trivial. simplify.
+  rewrite -ind_hyp. rewrite mkseqS. smt(). rewrite foldr_rcons; trivial. simplify.
+  have : exp (f i) (i + 1) = add (f i) (foldr add zero (mkseq (fun j => f i) (i))). rewrite expS. trivial. congr.
+  clear ind_hyp. have : forall j, 0 <= j => exp (f i) j = foldr add zero (mkseq (fun (_ : int) => f i) j).
+  apply intind. simplify. rewrite mkseq0. simplify. apply exp0. simplify. move => i0 ghi0 ind.
+  rewrite expS. smt(). rewrite ind. rewrite mkseqS. smt(). rewrite foldr_rcons; trivial. move => g. apply g. smt().
+  move => j. rewrite j. rewrite trans. rewrite -foldr_add_distr_f; trivial. congr.
+  have : i + 1 -i = 1. smt(). move => g. rewrite g. rewrite mkseq1. simplify. smt().
+  congr. apply (eq_from_nth zero). smt(@List). move => i0 hi0. rewrite !nth_mkseq. smt(@List). smt(@List).
+  simplify.  have : i + 1 -i0 = i -i0 +1. smt(). move => g''. rewrite g''. rewrite mkseqS. smt(@List). simplify.
+  rewrite foldr_rcons; trivial. congr. smt().
+qed.
+
+lemma sumz_cat i a b c d :
+i < sumz (a ++ b) =>
+sumz a <= sumz c =>
+sumz b <= sumz d =>
+i < sumz (c ++ d).
+proof.
+  move =>@/sumz. rewrite foldr_cat. smt(@Int). smt(@Int).
+  rewrite foldr_cat. smt(@Int). smt(@Int). move => h h' h''.
+  have : forall (a b c d : int), i < a+b => a <=c => b<=d => i < c+d.
+  smt(@Int). move => q. apply (q _ _ _ _ h h' h'').
+qed.
+
+lemma gtk_ge0 a :
+    all ((<=) 0) a =>
+    0 <= sumz a.
+proof.
+  smt(@List).
+qed.
+
+lemma gtk_sumz a k :
+    all ((<=) 0) a =>
+    (exists s, mem a s /\ k < s) =>
+      k < sumz a.
+proof.
+elim a => h. smt(). move => @/sumz l ind_hyp all_ge0 h'. simplify.
+  have : (exists (s : int), (s \in l) /\ k < s) => k < foldr Int.(+) 0 l. apply ind_hyp. smt(@List). move => h''.
+  elim h' => s sh. case (s = h) => h'''. subst. have : 0 <= foldr Int.(+) 0 l => k < h + (foldr Int.(+) 0 l). smt(@Int).
+  move => g. apply g. apply gtk_ge0. smt(). have : k < foldr Int.(+) 0 l => k < h + (foldr Int.(+) 0 l). smt(@Int @List).
+  move => g. apply g. apply ind_hyp. smt(@List). smt(@List).
+qed.
