@@ -41,6 +41,8 @@ op t : int.
 axiom t_valid : 1 <= t.
 axiom t_lt_card : t < GT.order.
 
+op (/) (g1 g2 : GB.group) = g1 * (inv g2).
+
   (* Helpful lemmas on sampling *)
 
 lemma FD_nin a :  mu Bl.FD.dt (fun (b : exp) => b <> a) = 1%r - (1%r / Bl.GB.order%r).
@@ -288,7 +290,21 @@ qed.
 lemma e_div1 x y g2: e x g2 / e y g2 = e (x/y) g2.(* $$$$$$$$$$ Derived from e_mul1 and e_inv1 and also standard homomorphism property from CyclicGroup.*)
 proof.
   rewrite -e_mul1. rewrite e_inv1. trivial.    
-qed.*)
+    qed.*)
+
+
+
+
+lemma pow_add (g : GB.group) (x y : exp) : g ^ (x + y) = (g ^ x) * (g ^ y).
+proof. by rewrite ZP.pow_add. qed.
+
+lemma pow_mul (g : GB.group) (x y : exp) : g ^ (x * y) = (g ^ x) ^ y.
+proof. by rewrite ZP.pow_pow. qed.
+
+
+
+
+
 
 lemma e_mul1_big x g2 :(*fixed*)
   e (List.foldr Bl.GB.( * ) Bl.GB.e x) g2 =
