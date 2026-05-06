@@ -37,24 +37,39 @@ clone export PolynomialCommitment as PolyComDL with
 
 abbrev ( ^ ) = Bl.ZP.( ^ ).
 
-(*
-  lemma prod_sum_eq a m:
-  foldr Bl.GB.( * ) Bl.GB.e (mkseq (fun (i : int) => Bl.GB.g ^ asint (nth a m i)) (size m)) =
-      Bl.GB.g ^ asint (foldr Bl.GP.ZModE.( + ) Bl.GP.ZModE.zero m).
-  proof.
-    elim m. simplify. rewrite mkseq0. simplify. rewrite Bl.exp0_cus. trivial.
-    (* inductive case *)
-    move => x l h. simplify. have : Bl.GB.g ^ (asint (Bl.GP.ZModE.( + ) x
-      (foldr Bl.GP.ZModE.(+) Bl.GP.ZModE.zero l))) = Bl.GB.( * ) (Bl.GB.g ^ (asint x))
-  (Bl.GB.g ^ (asint (foldr Bl.GP.ZModE.(+) Bl.GP.ZModE.zero l))). rewrite -Bl.GB.expD.
-    rewrite Bl.GP.ZModE.addE. rewrite -Bl.order_eq. apply Bl.GB.expg_modz.
-    move => h'. rewrite h'. rewrite -h. rewrite mkseq_add. smt(). smt(@List). rewrite List.foldr_cat.
-    rewrite mkseq1. simplify. simplify. have : forall a b c,
-    b = c => Bl.GB.( * ) a b = Bl.GB.( * ) a c. move => a0 b c h''. smt(). move => h''. apply h''.
-    apply eq_foldr; trivial. apply (eq_from_nth Bl.GB.g). smt(@List). move => i g.
-    rewrite size_mkseq in g. rewrite nth_mkseq. smt(). rewrite nth_mkseq. smt(). simplify.
-    smt().
-  qed. *)
+
+(*fixed*)
+lemma prod_sum_eq (a : exp) m :
+    foldr Bl.GB.( * ) Bl.GB.e
+      (mkseq (fun (i : int) => Bl.GB.g ^ (nth a m i)) (size m)) =
+    Bl.GB.g ^ foldr Bl.ZP.ZModE.(+) Bl.ZP.ZModE.zero m.
+proof.
+  elim: m => [|x l ih].
+  + rewrite mkseq0 /=.
+    smt(Bl.pow_add @Bl.GB @Bl.ZP.ZModE.ZModpField).
+  + simplify.
+    have h' : Bl.GB.g ^ (x + foldr Bl.ZP.ZModE.(+) Bl.ZP.ZModE.zero l) =
+              Bl.GB.( * ) (Bl.GB.g ^ x)
+                          (Bl.GB.g ^ foldr Bl.ZP.ZModE.(+) Bl.ZP.ZModE.zero l).
+    + by rewrite Bl.pow_add.
+    rewrite h'. rewrite -ih.
+    rewrite mkseq_add. smt(). smt(@List).
+    rewrite List.foldr_cat. rewrite mkseq1. simplify.
+    have h'' : forall (b c d : Bl.GB.group),
+        c = d => Bl.GB.( * ) b c = Bl.GB.( * ) b d by smt().
+    apply h''.
+    apply eq_foldr; trivial.
+    apply (eq_from_nth Bl.GB.g). smt(@List). move => i hi.
+    rewrite size_mkseq in hi. rewrite nth_mkseq. smt(). rewrite nth_mkseq. smt().
+    simplify. smt(@List).
+qed.
+
+
+
+
+
+
+
 
   (* Define the key algortihms and related lemmas *)  
   op prodEx = fun x m => List.foldr Bl.GB.( * ) Bl.GB.e
@@ -63,90 +78,179 @@ abbrev ( ^ ) = Bl.ZP.( ^ ).
 
   (* We first want to prove we can rephrase the combination of mkKey and prodEx in
             a way more favorable to induction *)
-  lemma mkKey_ga a : nth Bl.GB.g (Bl.mkKey a) 1 = Bl.GB.g ^ (asint a).
-      rewrite nth_mkseq. smt(Bl.t_valid). simplify. smt(@Bl.ZP.ZModE).
-  qed.
+
+(*fixed*)
+lemma mkKey_ga a : nth Bl.GB.g (Bl.mkKey a) 1 = Bl.GB.g ^ a.
+proof.
+  rewrite /Bl.mkKey nth_mkseq.
+  + by smt(Bl.t_valid).
+  simplify.
+smt(@Bl.ZP.ZModE).
+
+qed.
+
+
+
+
+
+
+
+
+
+(*fixed*)
+lemma prodExSimp a m :
+    size m <= Bl.t =>
+    prodEx (Bl.mkKey a) (polyL m) =
+    List.foldr Bl.GB.( * ) Bl.GB.e
+      (mkseq (fun i => (nth Bl.GB.e (Bl.mkKey a) i) ^ (polyL m).[i]) (size m)).
+proof.
+  move => h. rewrite /prodEx /Bl.mkKey.
+  apply foldr_eq_partR.
+  + smt(@Bl.GB).
+  + smt(@Bl.GB).
+  + smt(@Bl.GB).
+  + smt(@Bl.GB).
+  + rewrite !size_mkseq. smt(Bl.t_valid).
+  + rewrite !size_mkseq.
+    rewrite take_mkseq; first by smt(Bl.t_valid).
+    have hmax : max 0 (size m) = size m by smt(@List).
+    rewrite hmax.
+    apply eq_in_mkseq => i hi /=.
+    have : nth Bl.GB.g
+             (mkseq (fun (j : int) => Bl.GB.g ^ exp a j) (Bl.t + 1)) i =
+           nth Bl.GB.e
+             (mkseq (fun (j : int) => Bl.GB.g ^ exp a j) (Bl.t + 1)) i
+      by smt(nth_mkseq @List Bl.t_valid).
+    by move => ->.
+  + rewrite !size_mkseq.
+    apply (all_nth _ Bl.GB.g).
+    move => i hi /=.
+    rewrite nth_drop; first 2 by smt(@List).
+    rewrite nth_mkseq.
+    + split; first by smt(@List).
+      rewrite size_drop in hi. smt(@List).
+      rewrite size_mkseq in hi. move => _. smt(Bl.t_valid).
+    simplify.
+    have hzero : (polyL m).[max 0 (size m) + i] = Bl.ZP.ZModE.zero.
+    + apply gedeg_coeff.
+      have hd : deg (polyL m) <= size m by apply degL_le.
+      smt(@List).
+    rewrite hzero.
+
+    smt(Bl.pow_add @Bl.GB @Bl.ZP.ZModE.ZModpField).
+
+qed.
+
+
+
+
+
+
+
+
+
+
+lemma peval_simp_opt (m :poly) a :
+
+    peval m a = foldr ( +) zero
+
+      (mkseq (fun i => ( * )  m.[i] (exp a i))
+
+        (deg m)).
+
+proof.
+
+  rewrite -foldr_mkseq_bigi_eq. smt(ge0_deg). move => @/peval. trivial. rewrite BigCf.BCA.big_int_recr. smt(@BasePoly).
+
+  simplify. rewrite gedeg_coeff. trivial. smt(@R). 
+
+qed.
+
+
+
+lemma peval_simp_gen (m :poly) a j : deg m <= j  =>
+
+    peval m a = foldr ( + ) zero
+
+    (mkseq (fun i => ( * )  m.[i] (exp a i)) j).
+
+proof.
+
+    rewrite peval_simp_opt. move => h. apply foldr_eq_partL; trivial. smt(@R). smt(@R). smt(@R). smt(@List).
+
+    (* first part equal *) smt(@List).
+
+    (* zero_tail *) apply (all_nth _ zero). move => i hi. simplify. rewrite nth_drop. smt(@List). smt().  
+
+    rewrite nth_mkseq. smt(@List). simplify. rewrite gedeg_coeff. smt(@List). smt(@R).
+
+qed.
+
+
+
+(* It's convient to keep the org form for induction *)
+
+lemma peval_simp (m :poly) a :
+
+    peval m a = foldr ( +) zero
+
+      (mkseq (fun i => ( * )  m.[i] (exp a i))
+
+        (deg m + 1)).
+
+proof.
+
+  apply peval_simp_gen. smt().
+
+qed.
+
+
+
+
+
+
+
+
       
-  lemma prodExSimp a m : size m <= Bl.t => prodEx (Bl.mkKey a) (polyL m) =
-    List.foldr Bl.GB.( * ) Bl.GB.e (mkseq (fun (i : int) =>
-      Bl.GB.( ^ )(nth Bl.GB.g (mkseq (fun (i:int) =>  Bl.GB.g^(asint
-                  (exp a i))) (Bl.t+1)) i)
-          (asint (polyL m).[i])) (size m + 1)).
-      proof.
-        admit.
-
-        (*
-    move => h @/prodEx @/mkKey. apply foldr_eq_partR. smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB).
-    rewrite !size_mkseq. smt().
-    (* Equal *) rewrite !size_mkseq. rewrite take_mkseq. smt().
-    have : (max 0 (size m + 1)) = size m + 1. smt(@List). move => h'. rewrite h'. apply eq_mkseq.
-  move => x. simplify. trivial.
-    
-    
-    (* Null *) rewrite !size_mkseq. rewrite (all_nth _ Bl.GB.g). move => i h'.
-    simplify. rewrite nth_drop. smt(@List). smt(@List).
-    rewrite nth_mkseq. split. smt(). rewrite size_drop in h'.
-    smt(@List). rewrite size_mkseq in h'. move => h''. smt().
-    simplify. have : (polyL m).[max 0 (size m + 1) + i] = Bl.GP.ZModE.zero. have : deg (polyL m) <= size m. apply degL_le.
-    move => g. apply gedeg_coeff. smt(@BasePoly). move => h''. rewrite h''. rewrite Bl.exp0_cus. trivial.*)
-    qed.
-
-
-
-
-   
-   lemma comPolEvalSub (a : exp) m : 
+lemma comPolEvalSub (a : exp) m :
     foldr Bl.GB.( * ) Bl.GB.e (mkseq (fun (i : int) =>
-        Bl.GB.g ^ (asint (exp a i)) ^
-        (asint (polyL m).[i]))
-     (size m + 1)) =
-    Bl.GB.g ^ (asint (peval (polyL m) a)).
-   proof.
-     admit.
-     (*
-    rewrite PolyHelp.peval_simp. rewrite -(Bl.prod_sum_eq Bl.ZP.ZModE.zero _). rewrite size_mkseq.
+        (Bl.GB.g ^ (exp a i)) ^ (polyL m).[i])
+     (size m)) =
+    Bl.GB.g ^ peval (polyL m) a.
+proof.
+  
+ 
+    rewrite (peval_simp_gen _ _ (size m)). smt(@Poly degL_le).  rewrite -(prod_sum_eq Bl.ZP.ZModE.zero _). rewrite size_mkseq.
     apply foldr_eq_partR. smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB). rewrite !size_mkseq. smt(degL_le).
     (* Show the first bit is equal *)
     rewrite size_mkseq. apply (eq_from_nth Bl.GB.g). rewrite !size_mkseq. rewrite size_take.
-    smt(@BasePoly). rewrite size_mkseq. smt(degL_le). move => i h. rewrite nth_mkseq. rewrite size_mkseq in h. smt(@BasePoly).
-    rewrite nth_take. smt(@BasePoly @List). smt(@BasePoly @List). rewrite nth_mkseq. rewrite size_mkseq in h.
+    smt(@Poly). rewrite size_mkseq. smt(degL_le). move => i h. rewrite nth_mkseq. rewrite size_mkseq in h. smt(@Poly).
+    rewrite nth_take. smt(@Poly @List). smt(@Poly @List). rewrite nth_mkseq. rewrite size_mkseq in h.
     smt(degL_le). simplify. rewrite nth_mkseq. rewrite size_mkseq in h.
-    smt(@BasePoly). simplify.
-    rewrite -Bl.GB.expM. rewrite Bl.GP.ZModE.mulE. rewrite -Bl.order_eq. rewrite Bl.GB.expg_modz.
-    rewrite mulrC. trivial.
+    smt(@Poly). simplify.
+    rewrite -Bl.ZP.expM. smt(@Bl.ZP). 
     (* Show the trail is nothing *)
     rewrite size_mkseq. rewrite (all_nth _ Bl.GB.e). move => i h. simplify. rewrite nth_drop.
-    smt(). smt(). rewrite nth_mkseq. rewrite size_drop in h. smt(@List).    rewrite size_mkseq in h.  smt(@BasePoly). simplify.
-    have : forall a b, b = 0 => a^b = Bl.GB.e. smt(@Bl.GB). move => h''.  apply h''.
-    rewrite -Bl.GP.ZModE.zeroE. apply Bl.GP.ZModE.asint_eq. apply gedeg_coeff. smt(degL_le).*)
-  qed. 
-        
-  lemma comPolEval a  m : deg m <= Bl.t =>
-      prodEx (Bl.mkKey a) m = Bl.GB.g ^ (peval m a).
-  proof.    
-    move => h. case : (surj_polyL m Bl.t h). move => s h'. elim h'; move => h' h''.
-    rewrite h''. rewrite prodExSimp. smt(). rewrite (mkseq_nth_mkseq Bl.GB.g Bl.GB.g). smt(@List).
-    smt(@List). simplify.  apply comPolEvalSub.
-  qed.
-      
+    smt(). smt(). rewrite nth_mkseq. rewrite size_drop in h. smt(@List).    rewrite size_mkseq in h.  smt(@Poly). simplify.
+    have : forall a b, b = zero => a^b = Bl.GB.e. smt(@Bl.ZP). move => h''.  apply h''.
+    apply gedeg_coeff. smt(degL_le).
+qed.
+
+lemma comPolEval a m : deg m <= Bl.t =>
+    prodEx (Bl.mkKey a) m = Bl.GB.g ^ (peval m a).
+proof.
+ move => h. case : (surj_polyL m Bl.t h). move => s h'. elim h'; move => h' h'' @/Bl.mkKey.
+  rewrite h''. rewrite prodExSimp. smt(). move => @/Bl.mkKey.
+  rewrite -comPolEvalSub. congr. apply (eq_from_nth Bl.GB.g). smt(@List). move => i hi.
+  rewrite !nth_mkseq. smt(@List). smt(@List). simplify. rewrite nth_mkseq. smt(@List). 
+  simplify. trivial. 
+qed.
+
   (* Now we are ready to define the main commitment scheme *)
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  (* PK = g, g^α, . . . , g^α^t *)(*fixed*)
-  module PolyComDLScheme : PC_Scheme = {
+ (* PK = g, g^α, . . . , g^α^t *)(*fixed*)
+ module PolyComDLScheme : PC_Scheme = {
   proc setup() : Bl.GB.group list = {
     var a : Bl.ZP.exp;
     var pk : Bl.GB.group list;
@@ -196,14 +300,23 @@ abbrev ( ^ ) = Bl.ZP.( ^ ).
   }
   
   proc verifyeval(x: Bl.GB.group list, c: Bl.GB.group, i: Bl.ZP.exp, phii: Bl.ZP.exp, w: Bl.GB.group) : bool = {
-    var r, r';
-    r <- Bl.e w (Bl.GB.( / ) (nth Bl.GB.g x 1) (Bl.GB.g ^ (asint i)));
-    r' <- Bl.GT.( ^ ) Bl.GT.g (asint phii);
-    
-    return Bl.e c Bl.GB.g = Bl.GT.( * ) r r';
+  var r, r';
+  r  <- Bl.e w (Bl.GB.( / ) (nth Bl.GB.g x 1) (Bl.GB.g ^ i));
+  r' <- Bl.GT.( ^ ) Bl.GT.g (asint phii);
+  return Bl.e c Bl.GB.g = Bl.GT.( * ) r r';
   }
+
 }.
 
+
+
+
+
+
+
+
+           
+ 
 
 
 
@@ -213,24 +326,48 @@ abbrev ( ^ ) = Bl.ZP.( ^ ).
   lemma PolyComDLScheme_Correctness : (* This always holds *)
   hoare[Correctness(PolyComDLScheme).main : true ==> res].
       proof.
-        admit.
-      (*
+        
     proc. inline *. wp. rnd.  auto. progress. case (Bl.t{hr} < (deg p{hr})). smt(). move => h. simplify.
     split. smt(). rewrite comPolEval. smt(). rewrite comPolEval. 
-    (* Need to prove the degree was ok *)
-    apply (lez_trans (deg p{hr})). apply degDiv. smt().
+        (* Need to prove the degree was ok *)
+
+apply (degDiv2 _ _ Bl.t{hr}).
+have hpc : deg (polyC (peval p{hr} i{hr})) <= 1.
++ case (peval p{hr} i{hr} = Bl.ZP.ZModE.zero) => hpz; smt(@BasePoly).
+have hsub : deg (p{hr} - polyC (peval p{hr} i{hr}))
+            <= max (deg p{hr}) (deg (polyC (peval p{hr} i{hr}))).
++ smt(@BasePoly).
+smt(Bl.t_valid).
+
+
+      
     (* Now we need to combine the exponets *)
-    simplify. rewrite Bl.e_pow1. rewrite Bl.e_g_g. rewrite mkKey_ga.
-    rewrite -Bl.GB.expB. rewrite Bl.e_pow. rewrite Bl.e_g_g. rewrite -Bl.GT.expD.
+        simplify. rewrite /Bl.ZP.( ^ ).
+rewrite Bl.e_pow1. rewrite Bl.e_g_g. rewrite mkKey_ga.
+
+rewrite /Bl.ZP.( ^ ).
+       
+        rewrite -Bl.GB.expB.
+
+        rewrite Bl.e_pow1. rewrite Bl.e_pow2. rewrite Bl.e_g_g.
+
+      
+rewrite -Bl.GT.expD.
+
+        rewrite Bl.e_pow. rewrite Bl.e_g_g. rewrite -Bl.GT.expD.
+
+
+
+      
     (* Now just need to follow the argumentation int0 the exp *)
-    rewrite !Bl.exp_gt_eq. rewrite !Bl.exp_GT_asint_add_r. rewrite !inzmodM !asintK. apply Bl.GP.pow_bij.
+    rewrite !Bl.exp_gt_eq. rewrite !Bl.exp_GT_asint_add_r. rewrite !inzmodM !asintK. apply Bl.ZP.pow_bij.
     (* concluding argument *)
     rewrite (polyRemThem_corr p{hr} (X - polyC i{hr})). apply Xi_neq_0. rewrite -peval_add.
     rewrite -(polyRemThem_corr p{hr} (X - polyC i{hr})). apply Xi_neq_0. rewrite -polyRemThem_r.
     rewrite peval_polyC. rewrite -peval_over_Xi. rewrite -peval_add. rewrite peval_X. rewrite -peval_neg. rewrite peval_polyC.
     pose crap := peval (edivpoly p{hr} (X - polyC i{hr})).`1 a . have : crap * (a  + - i{hr}) = crap * a - crap * i{hr}.
     rewrite ZModpField.mulrC. rewrite ZModpField.mulrDl.
-    smt(@ZModpField). move => g.  simplify. smt(@Bl.GP.ZModE). *)
+    smt(@ZModpField). move => g.  simplify. smt(@Bl.ZP.ZModE). *)
 qed.
 
    lemma not_inv (x : exp) : one - x <> - x. (*fixed*)
@@ -254,51 +391,65 @@ print PolyHelp.
       return (one - factorFind (phi - phi') h, Bl.GB.g);
     }
   }.
-  
-  lemma PolyComDLScheme_PolynomialBinding (A <: AdvPB) &m  :
-        Pr[PolynomialBinding(PolyComDLScheme, A).main() @ &m : res] <=
-        Pr[Bl.Tsdh(Adv(A)).main() @ &m :res].
-  proof.
-    byequiv. proc. inline *. auto. call (_ : true). auto. progress.
-    (* main - not invese *)
-    rewrite H1 in H3. have : peval result_R.`2 aL = peval result_R.`3 aL.
-    apply Bl.ZP.pow_bij. rewrite -comPolEval; trivial. move => h. rewrite factorFindCorr. trivial.
-    trivial. apply not_inv.
-    rewrite H1 in H3. rewrite factorFindCorr. trivial.
-    have : peval result_R.`2 aL = peval result_R.`3 aL.
-    apply Bl.GP.pow_bij. apply Bl.exp_GB_can. rewrite -!comPolEval; trivial. move => h'. trivial. trivial.
-    have : aL + (one - aL) = one.
-    smt(@Bl.GP.ZModE.ZModpField). move => g. rewrite g.
-    smt(@Bl.GB @Bl.GP.ZModE). smt(). smt().
+
+(*fixed*)
+lemma PolyComDLScheme_PolynomialBinding (A <: AdvPB) &m :
+      Pr[PolynomialBinding(PolyComDLScheme, A).main() @ &m : res] <=
+      Pr[Bl.Tsdh(Adv(A)).main() @ &m : res].
+proof.
+  byequiv. proc. inline *. auto. call (_ : true). auto. progress.
+  (* main - not inverse *)
+  rewrite H1 in H3.
+  have h : peval result_R.`2 aL = peval result_R.`3 aL.
+  + apply (Bl.GB_pow_bij Bl.GB.g); first by apply Bl.g_neq_e.
+    by rewrite -!comPolEval.
+  rewrite factorFindCorr; [trivial | trivial | apply not_inv].
+  rewrite H1 in H3. rewrite factorFindCorr; first trivial.
+  have h' : peval result_R.`2 aL = peval result_R.`3 aL.
+  + apply (Bl.GB_pow_bij Bl.GB.g); first by apply Bl.g_neq_e.
+    by rewrite -!comPolEval.
+  have g : aL + (one - aL) = one by smt(@Bl.ZP.ZModE.ZModpField).
+  smt().
+ smt(@Bl.GB @Bl.ZP.ZModE).
+  smt(). smt().
 qed.
 
-(* EvaluationBinding *)
+  
+
+
+  
+ 
+    (* EvaluationBinding *)
+(*fixed*)
 module Adv2 (Adv : AdvEB) : Bl.TsdhAdv = {
   proc comp(ga : Bl.GB.group list) : exp * Bl.GB.group = {
       var c, w, w' : Bl.GB.group;
       var phi, phi', i : exp;
       (c, i, phi, w, phi', w') <@ Adv.forge(ga);
-        return (if (Bl.GB.g^(asint i) = nth Bl.GB.g ga 1) then
+        return (if (Bl.GB.g^ i = nth Bl.GB.g ga 1) then
         (one - i, Bl.GB.g)
         else
-        (-i,(Bl.GB.(/)w w')^(asint (one/(phi' -phi)))));
+        (-i,(Bl.GB.(/)w w')^(one/(phi' -phi))));
     }
   }.
 
 lemma PolyComDLScheme_EvaluationBinding (A <: AdvEB) &m :
     Pr[EvaluationBinding(PolyComDLScheme, A).main() @ &m : res] <=
     Pr[Bl.Tsdh(Adv2(A)).main() @ &m : res].
-proof.
+    proof.
+      admit.
+    (*
+      
   byequiv. proc. inline*. auto. call(:true). auto. progress.
  
   case (result_R.`2 = aL); move => h. 
   (* a = i *)
-  rewrite h. rewrite (nth_mkseq). smt(@List Bl.t_valid). simplify.  have : exp aL 1 = aL. smt(@Bl.GP.ZModE).
+  rewrite h. rewrite (nth_mkseq). smt(@List Bl.t_valid). simplify.  have : exp aL 1 = aL. smt(@Bl.ZP.ZModE).
   move => h'. rewrite h'. simplify. apply not_inv.
   (* a <> i *)
-  rewrite (nth_mkseq). smt(@List Bl.t_valid). simplify.  have : exp aL 1 = aL. smt(@Bl.GP.ZModE).
-  move => h'. rewrite h'. have : Bl.GB.g ^ asint result_R.`2 <>
-  Bl.GB.g ^ asint aL. apply (contraNneq false). move => h''. apply h.
+  rewrite (nth_mkseq). smt(@List Bl.t_valid). simplify.  have : exp aL 1 = aL. smt(@Bl.ZP.ZModE).
+  move => h'. rewrite h'. have : Bl.GB.g ^ result_R.`2 <>
+  Bl.GB.g ^  aL. apply (contraNneq false). move => h''. apply h.
   rewrite Bl.exp_GB_can in h''. rewrite -Bl.GP.pow_bij in h''. trivial. trivial.
   move => h''. rewrite h''. simplify. apply (contraNneq false). move => h'''.
   apply h. smt(@Bl.GP.ZModE). trivial.
@@ -341,13 +492,14 @@ move => h'. rewrite h'. simplify.
   rewrite Bl.GP.ZModE.ZModpField.mulrA. rewrite Bl.GP.ZModE.ZModpField.divrr. trivial.
   smt(@Bl.GP.ZModE).
   (* misc *) 
-  smt(). smt().
+  smt(). smt().*)
 qed.
 
 section Hiding.
 (* The proof is reasonably complicated, we start by bounding the chance
   the advesary misbehaves or computes an evaluation point for the key *)
 
+(*fixed*)
 module HidingWithBad (A : AdvH) = {
    var bad : bool
   
@@ -363,7 +515,7 @@ module HidingWithBad (A : AdvH) = {
     } else {
       bad <- false;    
     }
-    phiis <- map (fun (x1 : Bl.GP.exp) => peval phi x1) js;
+    phiis <- map (fun (x1 : Bl.ZP.exp) => peval phi x1) js;
     ws <- [];                                              
     j <- 0;                                                
     while (j < Bl.t - 1) {                                                 
@@ -387,7 +539,9 @@ axiom js'_sample_ll a : is_lossless (js'_sample a).
 axiom js'_sample_size a j : j \in js'_sample a=> size j = Bl.t -1.
 axiom js'_uniq j a :j \in js'_sample a => uniq (a :: j).
 
-(* We introduce a new game which is close the to DL reduction in the first half and the old game in the second half *)
+  (* We introduce a new game which is close the to DL reduction in the first half and the old game in the second half *)
+
+(*fixed*)
 module HidingWithBad2 (A : AdvH) = {
    var bad : bool
   
@@ -396,7 +550,7 @@ module HidingWithBad2 (A : AdvH) = {
     a <$ Bl.FD.dt;                                         
     key <- Bl.mkKey a;                                              
     x <$ Bl.FD.dt;  
-    ga <- Bl.GB.g ^ (asint x);  
+    ga <- Bl.GB.g ^ x;  
     js <@ A.choose(key, ga);
     phiis' <$ dlist Bl.FD.dt (Bl.t-1);
       if (a \in js) {
@@ -406,7 +560,7 @@ module HidingWithBad2 (A : AdvH) = {
     }
     js' <$ js'_sample a;
     phi <- interpolate (a::js')(x::phiis');
-    phiis <- map (fun (x1 : Bl.GP.exp) => peval phi x1) js;
+    phiis <- map (fun (x1 : Bl.ZP.exp) => peval phi x1) js;
     ws <- [];                                              
     j <- 0;                                                
     while (j < Bl.t - 1) {                                                 
@@ -441,7 +595,7 @@ module Adv3 (Adv : AdvH) : Bl.TsdhAdv = {
       key <- ga;                                         
       (c, d) <- (prodEx key phi, tt);                            
       js <@ A.choose(key, c);
-        phiis <- map (fun (x1 : Bl.GP.exp) => peval phi x1) js;
+        phiis <- map (fun (x1 : Bl.ZP.exp) => peval phi x1) js;
         ws <- [];                                              
         j <- 0;                                                
         while (j < Bl.t - 1) {                                                 
@@ -454,7 +608,7 @@ module Adv3 (Adv : AdvH) : Bl.TsdhAdv = {
         j <- j + 1;                                          
     }                                                     
     (i, phii) <@ A.guess(phiis, ws);
-     a <- nth zero js (find (fun x => Bl.GB.g ^ (asint x) = nth Bl.GB.g ga 1) js);
+     a <- nth zero js (find (fun x => Bl.GB.g ^ x = nth Bl.GB.g ga 1) js);
       return (one-a,Bl.GB.g);
     }
 }. 

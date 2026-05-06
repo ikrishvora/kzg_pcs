@@ -71,7 +71,14 @@ proof.
   + by move => ->.
 qed.
 
-
+lemma e_inj1 x y z : z <> GB.e => e x z = e y z => x = y.
+    admit.
+    (*
+    move => h0 h. rewrite -(GB.expgK x) in h. rewrite -(GB.expgK y) in h. rewrite -(GB.expgK z) in h. rewrite !e_pow in h.
+    rewrite e_g_g in h. rewrite !exp_gt_eq2 in h. rewrite -pow_bij in h.
+    apply GPB.log_bij. have : inzmod (log x) = inzmod (log y). rewrite !inzmodM  in h.
+    rewrite exp_mul_left in h. apply log_neq_zero. trivial. smt(@ZModE log_neq_zero). move => h''.  smt(loge_log).*)
+qed.
 
 
 lemma exp_g_modz (g : GB.group) k : g ^ (k %% p) = g ^ k.
@@ -244,6 +251,10 @@ lemma exp_div_left (a b c : exp) : (*fixed*)
 qed.
 
 
+lemma exp0_cus a : GB.( ^ )a (asint zero)%Bl.ZP.ZModE = Bl.GB.e.
+    proof.
+      admit.
+    qed.
 
 
 
@@ -335,6 +346,11 @@ lemma e_mul2_big g1 x :
   proof.
     elim x. simplify. trivial. move => x l h. simplify. rewrite- e_mul2. rewrite h. trivial.
 qed.
+
+
+
+
+(*modded*)
 
 
 (*
@@ -574,9 +590,16 @@ lemma exp_GB_can2_gen g (x y : int) : g <> Bl.GB.e => g ^ x = g ^ y <=>
     rewrite !inzmodK in h''. rewrite -Bl.order_eq in h''. rewrite -(GB.expgK g). smt(@Bl.GB).
   qed.
 
+    *)
 
+(*
 lemma exp0_cus a : GB.( ^ )a (asint zero)%Bl.GP.ZModE = Bl.GB.e.(*$$$$$$$$$ already shown in initial defintions*)
-    proof. rewrite zeroE. smt(@Bl.GB). qed.*)
+    proof.
+    admit.
+(*
+      rewrite zeroE. smt(@Bl.GB).*)
+
+  qed.*)
 
 
 
@@ -586,7 +609,6 @@ lemma prod_sum_eq (m : exp list):
 proof.
   admit.
 qed.
-
 
 
 

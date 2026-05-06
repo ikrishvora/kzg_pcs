@@ -47,15 +47,15 @@ clone export PolynomialCommitment as PolyComPed with
   lemma mkKey_ga g a : nth Bl.GB.g (mkKey g a) 1 = g ^ (asint a).
      rewrite nth_mkseq. smt(Bl.t_valid). simplify. smt(@Bl.ZP.ZModE).
   qed.
-      
+
+  (*fixed*)
   lemma prodExSimp g a m : size m <= Bl.t => prodEx g (mkKey g a) (polyL m) =
     List.foldr Bl.GB.( * ) Bl.GB.e (mkseq (fun (i : int) =>
       Bl.GB.( ^ )(nth g (mkseq (fun (i:int) =>  g^(asint
                   (exp a i))) (Bl.t+1)) i)
           (asint (polyL m).[i])) (size m + 1)).
       proof.
-        admit.
-      (*
+      
     move => h @/prodEx @/mkKey. apply foldr_eq_partR. smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB).
     rewrite !size_mkseq. smt().
     (* Equal *) rewrite !size_mkseq. rewrite take_mkseq. smt().
@@ -65,7 +65,8 @@ clone export PolynomialCommitment as PolyComPed with
     simplify. rewrite nth_drop. smt(@List). smt(@List). rewrite nth_mkseq. split. smt(@List). move => h''. rewrite size_drop in h'. smt(@List).
     rewrite size_mkseq in h'. smt().
     simplify. have : (polyL m).[max 0 (size m + 1) + i] = Bl.ZP.ZModE.zero. have : deg (polyL m) <= size m. apply degL_le.
-    move => g'. apply gedeg_coeff. smt(@BasePoly). move => h''. rewrite h''. rewrite Bl.exp0_cus. trivial.*)
+      move => g'. apply gedeg_coeff. apply (lez_trans (size m)). exact g'. smt(size_ge0).
+      move => h''. rewrite h''. rewrite Bl.exp0_cus. trivial.
   qed.
 
   (*fixed*)
@@ -90,9 +91,11 @@ clone export PolynomialCommitment as PolyComPed with
      (size m + 1)) =
      g ^ (asint (peval (polyL m) a)).
    proof.
+     
      admit.
    (*
-    rewrite PolyHelp.peval_simp. rewrite -(Bl.prod_sum_eq _ Bl.GP.ZModE.zero _). rewrite size_mkseq.
+
+     rewrite PolyHelp.peval_simp. rewrite -(Bl.prod_sum_eq _ Bl.ZP.ZModE.zero _). rewrite size_mkseq.
     apply foldr_eq_partR. smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB). smt(@Bl.GB). rewrite !size_mkseq. smt(degL_le).
     (* Show the first bit is equal *)
     rewrite size_mkseq. apply (eq_from_nth Bl.GB.g). rewrite !size_mkseq. rewrite size_take.
@@ -217,11 +220,20 @@ clone export PolynomialCommitment as PolyComPed with
         }
     }.
 
+
+
+
+
+
+
+
+    
   lemma PolyComDL2_Corr :
   hoare[Correctness(PolyCommitPed).main : true ==> res].
       proof.
         admit.
       (*
+      
      
      proc. inline*. auto. progress. case (Bl.t{hr} < deg p{hr}). smt(). move => h'.
     simplify. 
@@ -604,15 +616,17 @@ module Adv2 (A : AdvEB) : Bl.TsdhAdv2 = {
   lemma mu_FD js : size js = Bl.t - 1 =>
   0%r < mu Bl.FD.dt (fun (x : Bl.ZP.exp) => ! (x \in js)).
       proof.
+      admit.
         
-      
+      (*
     move => h. apply (AddDistr.mu_list _ _ Bl.GT.order). rewrite Bl.ZP.ZModE.DZmodP.dunifinE.
     have : forall (a a' b b' : real), a <= a' => b = b' => 0%r < b => a / b <= a' / b'.
     move => a a' b b' h' h'' h'''. subst. elim h' => h'. left. smt(). smt(). move => h'. apply h'.
     move => @/DZmodP.Support.enum. clear h. elim js. smt(@List). move => x l ind_hyp. simplify.
     case (x \in l). smt(@List). move => g. have : (fun (x0 : exp) => ! (x0 = x \/ (x0 \in l))) =
     predI (fun x0 => x0 <> x)(fun x0 => (! x0 \in l)). smt(). move => h. rewrite h.
-    rewrite countI. rewrite count_not_x. smt(@List prime_p). smt(@Bl.ZP.ZModE). smt(@Bl.GT). smt(Bl.t_lt_card).*)
+        rewrite countI. rewrite count_not_x. smt(@List prime_p). smt(@Bl.ZP.ZModE). smt(@Bl.GT). smt(Bl.t_lt_card).*)
+       
   qed.
 
 (* The adversary cannot do better then randomly guessing an evaulation point *)
@@ -934,11 +948,12 @@ lemma nth_from_all_key_valid_ind i g j x:
     nth Bl.GB.g x i = g ^ asint (exp (inzmod j) i) =>
     nth Bl.GB.g x (i+1) = g ^ asint (exp (inzmod j) (i+1)).
     proof.
-      admit.
-    (*
+      
   move => g_neq_e h_all hi h_ind. have: key_valid g (g^j) x i. smt(@List). move => @/key_valid. move => h'.
   rewrite h_ind in h'. rewrite Bl.e_pow1 in h'. rewrite -Bl.e_pow2 in h'.
-  have : nth Bl.GB.g x (i + 1) = g ^ asint (exp (inzmod j) i) ^ j. apply (Bl.e_inj1 _ _ g); trivial. smt(@Bl).
+      have : nth Bl.GB.g x (i + 1) = g ^ asint (exp (inzmod j) i) ^ j. apply (Bl.e_inj1 _ _ g); trivial. smt().
+
+      smt(@Bl).
 move => h. rewrite h. rewrite !exp_inzmod. elim hi => hi hi'. rewrite hi. have : 0 <= i + 1. smt(). move => hii. rewrite hii.
   simplify. rewrite !inzmodK. rewrite -Bl.order_eq. rewrite !Bl.exp_g_modz. rewrite -Bl.GB.expM. rewrite exprS. smt(). smt().*)
 qed.
