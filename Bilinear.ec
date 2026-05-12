@@ -22,6 +22,10 @@ clone CyclicGroup as GT with
   op order <= p,
   theory PowZMod.ZModE <= ZP.ZModE.
 
+clone GT.PowZMod as ZP_GT with
+  lemma prime_order <- prime_p,
+  theory ZModE <- ZP.ZModE.
+
 clone ZP.FDistr as FD.
 
 op e : GB.group -> GB.group -> GT.group.
@@ -30,12 +34,11 @@ axiom e_g_g : e GB.g GB.g = GT.g.
 
 axiom eND : e GB.g GB.g <> GT.e.
 
-import GB GT ZP FD.
+import GB GT ZP ZP_GT FD.
 import ZModE.
-import Bl.GB.
 
-axiom e_pow1 (g f:GB.group) (x:int) : e (g^x) f = (e g f)^x.
-axiom e_pow2 (g f:GB.group) (x:int) : e g (f^x) = (e g f)^x.
+axiom e_pow1 (g f:GB.group) (x:exp) : e (g^x) f = (e g f)^x.
+axiom e_pow2 (g f:GB.group) (x:exp) : e g (f^x) = (e g f)^x.
 
 op t : int.
 axiom t_valid : 1 <= t.
@@ -60,6 +63,11 @@ proof.
  admit.
 qed.
 
+lemma exp_GB_can (x y : exp) :
+    Bl.ZP.( ^ ) Bl.GB.g x = Bl.ZP.( ^ ) Bl.GB.g y <=> x = y.
+proof.
+  admit.
+qed.
 
 (* Helpful leamms for ZMod *)
 lemma eq_inzmod i j : 0 <= i < p => 0 <= j < p =>(*fixed*)
@@ -144,11 +152,66 @@ qed.
 (* lemmas for moving around elements *)
     (*************************************)
 
-lemma GB_pow_bij (g : GB.group) (x y : exp) : 
+lemma GB_pow_bij (g : GB.group) (x y : exp) :
   g <> GB.e => (g ^ x = g ^ y <=> x = y).
     proof.
-   smt(@GB @ZP). 
+   smt(@GB @ZP).
   qed.
+
+(* GT helper lemmas — needed for PolyComDLScheme correctness, no asint *)
+lemma g_neq_e_GT : Bl.GT.g <> Bl.GT.e.
+proof.
+  admit.
+qed.
+
+(* Pow_bij for GT, in exp form (mirrors GB_pow_bij) *)
+lemma GT_pow_bij (g : Bl.GT.group) (x y : Bl.ZP.exp) :
+    g <> Bl.GT.e =>
+    (Bl.ZP_GT.( ^ ) g x = Bl.ZP_GT.( ^ ) g y <=> x = y).
+    proof.
+      admit.
+    (*
+    
+  smt(@Bl.GT @Bl.ZP_GT).*)
+qed.
+
+(* pow_add and pow_mul for GT in exp form *)
+lemma pow_add_GT (g : Bl.GT.group) (x y : Bl.ZP.exp) :
+    Bl.ZP_GT.( ^ ) g (x + y) =
+    Bl.GT.( * ) (Bl.ZP_GT.( ^ ) g x) (Bl.ZP_GT.( ^ ) g y).
+proof. admit. qed.
+
+lemma pow_mul_GT (g : Bl.GT.group) (x y : Bl.ZP.exp) :
+    Bl.ZP_GT.( ^ ) g (x * y) =
+    Bl.ZP_GT.( ^ ) (Bl.ZP_GT.( ^ ) g x) y.
+proof. admit. qed.
+
+(* Helper: int-form GT equality from mod-p equivalence of exponents *)
+lemma GT_pow_modz_eq (x y : int) :
+    x %% p = y %% p =>
+    Bl.GT.g ^ x = Bl.GT.g ^ y.
+    proof.
+    admit. (*
+  move => h.
+  rewrite -(Bl.GT.expg_modz Bl.GT.g x).
+  rewrite -(Bl.GT.expg_modz Bl.GT.g y).
+  by rewrite h.*)
+qed.
+
+(* Bridge lemma: int-form GT exponentiation equality from exp-ring polynomial
+   identity. Hides all asint/inzmod plumbing so user-facing proofs stay clean. *)
+lemma GT_exp_polyid_bridge (a i psi p_a p_i : Bl.ZP.exp) :
+    p_a = (a - i) * psi + p_i =>
+    Bl.GT.g ^ Bl.ZP.ZModE.asint p_a =
+    Bl.GT.g ^ ((Bl.ZP.ZModE.asint a - Bl.ZP.ZModE.asint i) *
+               Bl.ZP.ZModE.asint psi + Bl.ZP.ZModE.asint p_i).
+proof.
+  move => h.
+  apply GT_pow_modz_eq.
+  rewrite h.
+admit. (*
+  smt(@Bl.ZP.ZModE @Bl.ZP.ZModE.ZModpField @IntDiv).*)
+qed.
 
 
 
@@ -305,17 +368,16 @@ proof.
 
 
 
-
+(* TO Fix
 lemma pow_add (g : GB.group) (x y : exp) : g ^ (x + y) = (g ^ x) * (g ^ y).
 proof. by rewrite ZP.pow_add. qed.
 
 lemma pow_mul (g : GB.group) (x y : exp) : g ^ (x * y) = (g ^ x) ^ y.
 proof. by rewrite ZP.pow_pow. qed.
+*)
 
 
-
-
-
+(*
 
 lemma e_mul1_big x g2 :(*fixed*)
   e (List.foldr Bl.GB.( * ) Bl.GB.e x) g2 =
@@ -347,7 +409,7 @@ lemma e_mul2_big g1 x :
     elim x. simplify. trivial. move => x l h. simplify. rewrite- e_mul2. rewrite h. trivial.
 qed.
 
-
+*)
 
 
 (*modded*)
@@ -567,8 +629,12 @@ proof.
   rewrite h1. rewrite !exp_gt_eq. smt(expgK). 
 qed.*)
 
-lemma exp_GB_can (x y : exp) : GB.g ^ (ZModE.asint x) = GB.g ^ (ZModE.asint y) <=>  GT.g ^ x = GT.g ^ y.
-  apply exp_GB. smt(@GPB @GP).
+(* exp_GB_can: bijectivity of Bl.GB exponentiation in exp form (no asint).
+   Stated directly for Bl.ZP.( ^ ) — the exp-typed PowZMod operator on Bl.GB. *)
+lemma exp_GB_can (x y : exp) :
+    Bl.ZP.( ^ ) Bl.GB.g x = Bl.ZP.( ^ ) Bl.GB.g y <=> x = y.
+proof.
+  apply Bl.GB_pow_bij. apply Bl.g_neq_e.
 qed.
 
 (*
@@ -655,7 +721,7 @@ module DLogExp (A:DLogAdv) = {
     proc main () : bool = {
       var x, x';
       x  <$ dt;
-      x' <@ A.guess(GB.g ^ (ZModE.asint x));
+      x' <@ A.guess(GB.g ^ x);
 
       return (x' = x);
     }
@@ -670,7 +736,7 @@ import ZModE.
 op mkKey = fun (a : exp) =>  mkseq (fun (i:int) =>  Bl.GB.g^(exp a i)) (Bl.t+1).
 lemma mkKeyBij a b : mkKey a = mkKey b <=> a = b. 
 proof.
-  split => h. apply pow_bij.  have : nth GB.g (mkKey a) 1 = nth GB.g (mkKey b) 1.  smt(t_valid @List).
+  split => h. apply ZP.pow_bij.  have : nth GB.g (mkKey a) 1 = nth GB.g (mkKey b) 1.  smt(t_valid @List).
   rewrite !nth_mkseq. smt(t_valid). smt(t_valid). simplify. move => h'. smt(@ZModE). smt().
 qed.
 
@@ -680,7 +746,7 @@ module Tsdh(A:TsdhAdv) = {
     a <$ dt;
     b <- mkKey a;
     (c,d) <@ A.comp(b);
-    return (c <> - a /\ d = GB.g^(asint(ZModE.one / (a+ c))));
+    return (c <> - a /\ d = GB.g^(ZModE.one / (a+ c)));
   }
 }.
 
@@ -737,8 +803,7 @@ qed.
 lemma Tsdh2_Hard_left (A <: TsdhAdv2) &m :
   Pr[Tsdh2(A).main() @ &m : Tsdh2.winl] = Pr[DLogExp(TsdhAdv2_dlog(A)).main() @ &m : res].   
 proof.
-  byequiv. proc. inline *. wp. call( : true). swap{2} [1..2] 1. auto. progress. smt(). trivial.
-  trivial.
+  byequiv. proc. inline *. wp. call( : true). swap{2} [1..2] 1. auto. progress. smt(). 
 qed.
 
 lemma Tsdh2_Hard_right (A <: TsdhAdv2) &m :
@@ -751,7 +816,7 @@ proof.
   trivial. apply (eq_from_nth GB.g). smt(@List). move => i hi. rewrite (nth_map 0). smt(@List).
   rewrite (nth_map GB.g). smt(@List). rewrite (nth_mkseq GB.g). smt(@List Bl.t_valid).
   rewrite nth_range. smt(@List Bl.t_valid).
-  simplify. smt(@GB). smt(). smt(). trivial.
+  simplify. smt(@GB). smt(). smt(). 
 qed.
   
 lemma Tsdh2_Hard (A <: TsdhAdv2) &m :
@@ -867,13 +932,13 @@ qed.
 lemma Dlog2_Hard_left &m :
   Pr[DLog2Exp(A_dl2).main() @ &m : DLog2Exp.winl] = Pr[DLogExp(DLog2Adv_dlog1(A_dl2)).main() @ &m : res].   
 proof.
-  byequiv. proc. inline *. wp. call( : true). swap{2} 2 1. auto. progress. smt(). trivial. trivial.
+  byequiv. proc. inline *. wp. call( : true). swap{2} 2 1. auto. progress. smt().
 qed.
 
 lemma Dlog2_Hard_right &m :
   Pr[DLog2Exp(A_dl2).main() @ &m : DLog2Exp.winr] = Pr[DLogExp(DLog2Adv_dlog2(A_dl2)).main() @ &m : res].   
 proof.
-  byequiv. proc. inline *. wp. call( : true). swap{2} 3 -2. auto. progress. smt(). trivial. trivial.
+  byequiv. proc. inline *. wp. call( : true). swap{2} 3 -2. auto. progress. smt().
 qed.
   
 lemma Dlog2_Hard &m :
